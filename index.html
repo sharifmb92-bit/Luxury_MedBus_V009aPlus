@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MED BASHA PRO - Control de Jornada</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#70777a">
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <style>
+        :root {
+            --bg-principal: #0f172a;
+            --bg-tarjeta: rgba(30, 41, 59, 0.7);
+            --texto-blanco: #f8fafc;
+            --texto-gris: #94a3b8;
+            --color-gris-pro: #70777a; /* Tu gris maestro muy importante */
+            --verde-exito: #16a34a;
+            --calabaza-alerta: #f59e0b;
+            --rojo-error: #ef4444;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-principal);
+            color: var(--texto-blanco);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 16px;
+            overflow-x: hidden;
+        }
+
+        .contenedor-app {
+            width: 100%;
+            max-width: 450px;
+            background: var(--bg-tarjeta);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--color-gris-pro);
+            font-size: 26px;
+            font-weight: 900;
+            font-style: italic;
+            margin: 0 0 4px 0;
+            letter-spacing: -1px;
+        }
+
+        .subtitulo-conductor {
+            text-align: center;
+            font-size: 10px;
+            color: var(--texto-gris);
+            text-transform: uppercase;
+            font-weight: 800;
+            margin-bottom: 24px;
+            letter-spacing: 1px;
+        }
+
+        .seccion-autenticacion, .interfaz-principal {
+            display: none;
+        }
+
+        .bloque-activo {
+            display: block;
+        }
+
+        .campo-grupo {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--texto-gris);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.15);
+            background-color: rgba(0,0,0,0.4);
+            color: var(--texto-blanco);
+            box-sizing: border-box;
+            font-size: 16px;
+            outline: none;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+
+        input:focus, select:focus {
+            border-color: #3b82f6;
+        }
+
+        input[type="time"] {
+            font-size: 1.5rem;
+            font-weight: 900;
+        }
+
+        input[type="text"] {
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #fbbf24;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 14px;
+            font-weight: 900;
+            font-size: 15px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primario {
+            background-color: var(--color-gris-pro);
+            color: var(--texto-blanco);
+        }
+
+        .btn-dieta {
+            background-color: rgba(255,255,255,0.05);
+            color: var(--texto-gris);
+            letter-spacing: 0.5px;
+        }
+
+        .btn-dieta.estado-verde {
+            background-color: var(--verde-exito) !important;
+            color: white;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.3);
+        }
+
+        .btn-dieta.estado-calabaza) {
+            background-color: var(--calabaza-alerta) !important;
+            color: white;
+        }
+
+        /* Clase explícita de parpadeo respetando la animación calabaza medbasha */
+        .animacion-parpadeo-calabaza {
+            background-color: var(--calabaza-alerta) !important;
+            color: white;
+            animation: amber-pulse 1.2s infinite;
+        }
+
+        @keyframes amber-pulse {
+            0%, 100% { background-color: rgba(245, 158, 11, 0.4); }
+            50% { background-color: rgba(245, 158, 11, 1); box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); }
+        }
+
+        .usuario-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0,0,0,0.3);
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            border-left: 4px solid var(--color-gris-pro);
+        }
+
+        .btn-cerrar-sesion {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 11px;
+            background-color: rgba(255,255,255,0.1);
+            color: var(--texto-blanco);
+            margin: 0;
+            border-radius: 8px;
+        }
+
+        .alerta-error {
+            background-color: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--rojo-error);
+            color: #fca5a5;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+
+        .firma-footer {
+            text-align: center;
+            font-family: 'Georgia', serif;
+            font-style: italic;
+            font-size: 12px;
+            color: var(--texto-gris);
+            opacity: 0.4;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="contenedor-app">
+        <h1>MED BASHA PRO</h1>
+        <div class="subtitulo-conductor">Conductor Menorca</div>
+        
+        <div id="alertaGlobal" class="alerta-error"></div>
+
+        <div id="seccionAuth" class="seccion-autenticacion bloque-activo">
+            <div class="campo-grupo">
+                <label>Correo Electrónico</label>
+                <input type="email" id="authEmail" placeholder="tu-usuario@bus.com">
+            </div>
+            <div class="campo-grupo">
+                <label>Contraseña</label>
+                <input type="password" id="authPassword" placeholder="******">
+            </div>
+            <button class="btn-primario" onclick="gestionUsuarioMedBasha('login')">Iniciar Sesión</button>
+            <button class="btn-primario" style="background-color: rgba(255,255,255,0.05); margin-top: 8px;" onclick="gestionUsuarioMedBasha('registro')">Registrar Nuevo Conductor</button>
+        </div>
+
+        <div id="interfazPrincipal" class="interfaz-principal">
+            <div class="usuario-info">
+                <span id="txtUsuarioConectado">Conductor: ...</span>
+                <button class="btn-cerrar-sesion" onclick="cerrarSesionMedBasha()">Salir</button>
+            </div>
+
+            <div class="campo-grupo">
+                <label>Estructura de Jornada</label>
+                <select id="tipoJornada" onchange="calcularLogicaDietas()">
+                    <option value="continua">Jornada Continua</option>
+                    <option value="partida">Jornada Partida</option>
+                </select>
+            </div>
+
+            <div class="campo-grupo">
+                <label>Número de Bus</label>
+                <input type="text" id="numBus" placeholder="Nº BUS" autocapitalize="characters">
+            </div>
+
+            <div id="bloqueTramo1">
+                <div class="campo-grupo">
+                    <label>Hora Entrada (Tramo 1)</label>
+                    <input type="time" id="horaInicio1" onchange="calcularLogicaDietas()">
+                </div>
+                <div class="campo-grupo">
+                    <label>Hora Salida (Tramo 1)</label>
+                    <input type="time" id="horaFin1" onchange="calcularLogicaDietas()">
+                </div>
+            </div>
+
+            <div id="bloqueTramo2" style="display: none; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 14px; margin-top: 14px;">
+                <div class="campo-grupo">
+                    <label>Hora Entrada (Tramo 2)</label>
+                    <input type="time" id="horaInicio2" onchange="calcularLogicaDietas()">
+                </div>
+                <div class="campo-grupo">
+                    <label>Hora Salida (Tramo 2)</label>
+                    <input type="time" id="horaFin2" onchange="calcularLogicaDietas()">
+                </div>
+            </div>
+
+            <div class="campo-grupo">
+                <label>Asignación de Dietas</label>
+                <button id="btnDietas" class="btn-dieta" onclick="forzarCambioDietaManual()">Sin Dieta</button>
+            </div>
+
+            <button class="btn-primario" style="background-color: var(--verde-exito); margin-top: 20px;" onclick="guardarTurnoSeguro()">Guardar Turno Sincronizado</button>
+        </div>
+
+        <div class="firma-footer">medbasha</div>
+    </div>
+
+    <script>
+        // Tus datos reales de Firebase insertados de forma segura
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7b6_T0ze2HgXiYHfvUeL12JSXE7ZKogc",
+            authDomain: "misturnos-fe3ea.firebaseapp.com",
+            databaseURL: "https://misturnos-fe3ea-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "misturnos-fe3ea",
+            storageBucket: "misturnos-fe3ea.firebasestorage.app",
+            messagingSenderId: "1029095925443",
+            appId: "1:1029095925443:web:873240d85ac5160f392476",
+            measurementId: "G-B6RRDBDM4R"
+        };
+        
+        // Inicialización unificada del entorno
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let usuarioActual = null;
+        let estadoDietaCalculado = "ninguna"; 
+
+        // Intercambio visual dinámico de tramos
+        document.getElementById('tipoJornada').addEventListener('change', function() {
+            const tramo2 = document.getElementById('bloqueTramo2');
+            if(this.value === 'partida') {
+                tramo2.style.display = 'block';
+            } else {
+                tramo2.style.display = 'none';
+                document.getElementById('horaInicio2').value = '';
+                document.getElementById('horaFin2').value = '';
+            }
+        });
+
+        // ESCUCHA ACTIVA DE AUTENTICACIÓN (Seguridad aislada por UID)
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                usuarioActual = user;
+                document.getElementById('seccionAuth').style.display = 'none';
+                document.getElementById('interfazPrincipal').style.display = 'block';
+                document.getElementById('txtUsuarioConectado').innerText = `Conductor: ${user.email}`;
+                ocultarError();
+            } else {
+                usuarioActual = null;
+                document.getElementById('interfazPrincipal').style.display = 'none';
+                document.getElementById('seccionAuth').style.display = 'block';
+            }
+        });
+
+        function gestionUsuarioMedBasha(accion) {
+            const email = document.getElementById('authEmail').value;
+            const pass = document.getElementById('authPassword').value;
+
+            if(!email || !pass) {
+                mostrarError("Introduce credenciales válidas.");
+                return;
+            }
+
+            if(accion === 'login') {
+                auth.signInWithEmailAndPassword(email, pass).catch(err => mostrarError(err.message));
+            } else if(accion === 'registro') {
+                auth.createUserWithEmailAndPassword(email, pass).catch(err => mostrarError(err.message));
+            }
+        }
+
+        function cerrarSesionMedBasha() {
+            auth.signOut();
+        }
+
+        function mostrarError(msg) {
+            const errDiv = document.getElementById('alertaGlobal');
+            errDiv.innerText = msg;
+            errDiv.style.display = 'block';
+        }
+        function ocultarError() {
+            document.getElementById('alertaGlobal').style.display = 'none';
+        }
+
+        // PARSER HORARIO MEDBASHA
+        function medbashaCalcularMinutos(horaStr) {
+            if(!horaStr) return -1;
+            const [h, m] = horaStr.split(':').map(Number);
+            return (h * 60) + m;
+        }
+
+        // CÁLCULO ESTRICTO DE DIETAS SEGÚN TUS HORARIOS Y DURACIONES
+        function calcularLogicaDietas() {
+            const tipo = document.getElementById('tipoJornada').value;
+            
+            const ini1 = document.getElementById('horaInicio1').value;
+            const fin1 = document.getElementById('horaFin1').value;
+            const ini2 = document.getElementById('horaInicio2').value;
+            const fin2 = document.getElementById('horaFin2').value;
+
+            const mIni1 = medbashaCalcularMinutos(ini1);
+            const mFin1 = medbashaCalcularMinutos(fin1);
+            const mIni2 = medbashaCalcularMinutos(ini2);
+            const mFin2 = medbashaCalcularMinutos(fin2);
+
+            let correspondeDietaComida = false;
+            let correspondeDietaCena = false;
+            let evaluarTramo = null;
+
+            if (tipo === 'continua' && mIni1 !== -1 && mFin1 !== -1) {
+                let duracion = mFin1 - mIni1;
+                if(duracion < 0) duracion += 1440;
+                evaluarTramo = { duracionMin: duracion, finMin: mFin1 };
+            } else if (tipo === 'partida') {
+                let duracion1 = 0, duracion2 = 0;
+                if(mIni1 !== -1 && mFin1 !== -1) {
+                    duracion1 = mFin1 - mIni1; if(duracion1 < 0) duracion1 += 1440;
+                }
+                if(mIni2 !== -1 && mFin2 !== -1) {
+                    duracion2 = mFin2 - mIni2; if(duracion2 < 0) duracion2 += 1440;
+                }
+
+                // Turnos partidos: Evaluamos solo el tramo de jornada continua más largo
+                if (duracion1 >= duracion2 && duracion1 > 0) {
+                    evaluarTramo = { duracionMin: duracion1, finMin: mFin1 };
+                } else if (duracion2 > duracion1) {
+                    evaluarTramo = { duracionMin: duracion2, finMin: mFin2 };
+                }
+            }
+
+            if (!evaluarTramo) {
+                actualizarBotonDietas("ninguna");
+                return;
+            }
+
+            const { duracionMin, finMin } = evaluarTramo;
+            const horasTrabajadas = duracionMin / 60;
+
+            // REGLAS DE LA MAÑANA (Comida)
+            if (horasTrabajadas === 9 && finMin === 900) { // 9h de trabajo y termina a las 15:00 en punto
+                correspondeDietaComida = true;
+            }
+            if (horasTrabajadas >= 6 && finMin === 930) { // 6h o más de trabajo y termina a las 15:30 en punto
+                correspondeDietaComida = true;
+            }
+
+            // REGLAS DE LA TARDE / CENA
+            const esFinCenaOmasTarde = (finMin >= 1380 || finMin <= 360); // 23:00 o más tarde / madrugada
+            if (horasTrabajadas >= 6 && esFinCenaOmasTarde) {
+                correspondeDietaCena = true;
+            }
+
+            // Renderizado de estados medbasha
+            if (correspondeDietaComida || correspondeDietaCena) {
+                actualizarBotonDietas("automatica");
+            } else {
+                actualizarBotonDietas("extraordinaria"); // Caso extraordinario: parpadeo calabaza activado
+            }
+        }
+
+        function actualizarBotonDietas(estado) {
+            const btn = document.getElementById('btnDietas');
+            btn.className = "btn-dieta"; 
+            estadoDietaCalculado = estado;
+
+            if (estado === "automatica") {
+                btn.classList.add('estado-verde');
+                btn.innerText = "Dieta Autorizada (Auto)";
+            } else if (estado === "extraordinaria") {
+                btn.classList.add('animacion-parpadeo-calabaza');
+                btn.innerText = "Caso Extraordinario ¿Dietas?";
+            } else {
+                btn.innerText = "Fuera de Regla (Sin Dieta)";
+            }
+        }
+
+        function forzarCambioDietaManual() {
+            const btn = document.getElementById('btnDietas');
+            if (estadoDietaCalculado === "extraordinaria") {
+                btn.classList.remove('animacion-parpadeo-calabaza');
+                btn.classList.add('estado-verde');
+                btn.innerText = "Dieta Forzada (Manual)";
+                estadoDietaCalculado = "forzada_manual";
+            } else if (estadoDietaCalculado === "forzada_manual") {
+                btn.classList.remove('estado-verde');
+                btn.classList.add('animacion-parpadeo-calabaza');
+                btn.innerText = "Caso Extraordinario ¿Dietas?";
+                estadoDietaCalculado = "extraordinaria";
+            }
+        }
+
+        // ACCIÓN DEL SUPERVISOR EN TIEMPO REAL ANTES DE LA PERSISTENCIA
+        function guardarTurnoSeguro() {
+            ocultarError();
+            
+            if (!usuarioActual) {
+                mostrarError("No hay sesión de conductor activa.");
+                return;
+            }
+
+            const tipo = document.getElementById('tipoJornada').value;
+            const bus = document.getElementById('numBus').value.trim();
+            const ini1 = document.getElementById('horaInicio1').value;
+            const fin1 = document.getElementById('horaFin1').value;
+
+            // INTERCEPCIÓN DEL SUPERVISOR
+            if (!bus) {
+                alert("⚠️ ATENCIÓN: Falta el número de bus. Por favor, introdúcelo de inmediato.");
+                mostrarError("Falta número de autobús.");
+                return;
+            }
+
+            if (fin1 && !ini1) {
+                alert("⚠️ ALERTA DE SUPERVISIÓN: Has registrado la hora de fin sin haber puesto la de inicio. Corrígelo en el acto.");
+                mostrarError("Error: Hora de fin sin hora de inicio.");
+                return;
+            }
+            
+            if (tipo === 'partida') {
+                const ini2 = document.getElementById('horaInicio2').value;
+                const fin2 = document.getElementById('horaFin2').value;
+                if (fin2 && !ini2) {
+                    alert("⚠️ ALERTA DE SUPERVISIÓN: En el Tramo 2 has puesto fin sin hora de inicio.");
+                    return;
+                }
+            }
+
+            const tieneDietaEfectiva = (estadoDietaCalculado === "automatica" || estadoDietaCalculado === "forzada_manual");
+            
+            const datosTurno = {
+                tipoJornada: tipo,
+                numeroAutobus: bus,
+                horaInicio1: ini1,
+                horaFin1: fin1,
+                horaInicio2: document.getElementById('horaInicio2').value || null,
+                horaFin2: document.getElementById('horaFin2').value || null,
+                dietaRegistrada: tieneDietaEfectiva,
+                modoDieta: estadoDietaCalculado,
+                fechaRegistro: new Date().toISOString(),
+                selloValidador: "medbasha"
+            };
+
+            // ESCRITURA EN EL NODO PRIVADO EXCLUSIVO DEL USUARIO LOGUEADO
+            db.collection("app_turnos")
+              .doc("usuarios")
+              .collection(usuarioActual.uid)
+              .doc("turnos")
+              .collection("registros")
+              .add(datosTurno)
+              .then(() => {
+                  alert("¡Excelente, Sharif! Turno guardado y sincronizado de forma segura en la nube.");
+                  document.getElementById('numBus').value = '';
+                  document.getElementById('horaInicio1').value = '';
+                  document.getElementById('horaFin1').value = '';
+                  document.getElementById('horaInicio2').value = '';
+                  document.getElementById('horaFin2').value = '';
+                  actualizarBotonDietas("ninguna");
+              })
+              .catch(error => {
+                  mostrarError("Error al sincronizar con Firestore: " + error.message);
+              });
+        }
+    </script>
+</body>
+</html>
